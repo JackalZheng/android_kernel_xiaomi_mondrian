@@ -41,11 +41,11 @@ static int aw_get_hmute(struct aw_device *aw_dev)
 {
 	int ret;
 	unsigned int reg_val = 0;
-	struct aw_mute_desc *desc = &aw_dev->mute_desc;
+	struct aw_switch_desc *desc = &aw_dev->mute_desc;
 
 	aw_dev_dbg(aw_dev->dev, "enter");
 
-	ret = aw_dev->ops.aw_i2c_read(aw_dev, desc->reg, &reg_val);
+	ret = aw_dev->ops.aw_i2c_read(aw_dev->i2c, desc->reg, &reg_val);
 	if (ret < 0)
 		return ret;
 
@@ -96,7 +96,7 @@ static int aw_monitor_get_voltage(struct aw_device *aw_dev, unsigned int *vol)
 		}
 		*vol = (*vol) / 1000;
 	} else {
-		ret = aw_dev->ops.aw_i2c_read(aw_dev, desc->reg, vol);
+		ret = aw_dev->ops.aw_i2c_read(aw_dev->i2c, desc->reg, vol);
 		if (ret < 0) {
 			aw_dev_err(aw_dev->dev, "read voltage failed!");
 			return ret;
@@ -125,7 +125,7 @@ static int aw_monitor_get_temperature(struct aw_device *aw_dev, int *temp)
 		}
 		*temp = (*temp) / 10;
 	} else {
-		ret = aw_dev->ops.aw_i2c_read(aw_dev, desc->reg, &reg_val);
+		ret = aw_dev->ops.aw_i2c_read(aw_dev->i2c, desc->reg, &reg_val);
 		if (ret < 0) {
 			aw_dev_err(aw_dev->dev, "get temperature failed!");
 			return ret;
@@ -333,7 +333,7 @@ static void aw_monitor_set_ipeak(struct aw_device *aw_dev,
 	if (ipeak == IPEAK_NONE || (!monitor_cfg->ipeak_switch))
 		return;
 
-	ret = aw_dev->ops.aw_i2c_read(aw_dev, desc->reg, &reg_val);
+	ret = aw_dev->ops.aw_i2c_read(aw_dev->i2c, desc->reg, &reg_val);
 	if (ret < 0) {
 		aw_dev_err(aw_dev->dev, "read ipeak failed");
 		return;
@@ -353,7 +353,7 @@ static void aw_monitor_set_ipeak(struct aw_device *aw_dev,
 	read_reg_val = ipeak;
 	reg_val |= read_reg_val;
 
-	ret = aw_dev->ops.aw_i2c_write(aw_dev, desc->reg, reg_val);
+	ret = aw_dev->ops.aw_i2c_write(aw_dev->i2c, desc->reg, reg_val);
 	if (ret < 0) {
 		aw_dev_err(aw_dev->dev, "write ipeak failed");
 		return;
@@ -458,7 +458,6 @@ static void aw_monitor_work_func(struct work_struct *work)
 {
 	struct aw_device *aw_dev  = container_of(work,
 		struct aw_device, monitor_desc.delay_work.work);
-	struct aw882xx *aw882xx = (struct aw882xx *)aw_dev->private_data;
 	struct aw_monitor_cfg *monitor_cfg = &aw_dev->monitor_desc.monitor_cfg;
 	struct aw_monitor_desc *monitor = &aw_dev->monitor_desc;
 
@@ -471,7 +470,7 @@ static void aw_monitor_work_func(struct work_struct *work)
 		if (!aw_get_hmute(aw_dev)) {
 			aw_monitor_work(aw_dev);
 			if (monitor->monitor_mode == AW_MON_KERNEL_MODE) {
-				queue_delayed_work(aw882xx->work_queue,
+				queue_delayed_work(aw_dev->work_queue,
 					&monitor->delay_work,
 					msecs_to_jiffies(monitor_cfg->monitor_time));
 			}
@@ -481,7 +480,7 @@ static void aw_monitor_work_func(struct work_struct *work)
 
 static void aw_monitor_check_bop_status(struct aw_device *aw_dev)
 {
-	struct aw_bop_desc *bop_desc = &aw_dev->bop_desc;
+	struct aw_switch_desc *bop_desc = &aw_dev->bop_desc;
 	unsigned int reg_val = 0;
 
 	aw_dev_dbg(aw_dev->dev, "enter");
@@ -489,7 +488,7 @@ static void aw_monitor_check_bop_status(struct aw_device *aw_dev)
 	if (aw_dev->bop_desc.reg == AW_REG_NONE)
 		return;
 
-	aw_dev->ops.aw_i2c_read(aw_dev, bop_desc->reg, &reg_val);
+	aw_dev->ops.aw_i2c_read(aw_dev->i2c, bop_desc->reg, &reg_val);
 	reg_val = (uint16_t)reg_val & (~bop_desc->mask);
 	if (reg_val == bop_desc->enable)
 		aw_dev->bop_en = AW_BOP_ENABLE;
@@ -503,7 +502,6 @@ void aw882xx_monitor_start(struct aw_monitor_desc *monitor_desc)
 {
 	struct aw_device *aw_dev = container_of(monitor_desc,
 			struct aw_device, monitor_desc);
-	struct aw882xx *aw882xx = (struct aw882xx *)aw_dev->private_data;
 
 	aw_dev_dbg(aw_dev->dev, "enter");
 
@@ -521,7 +519,7 @@ void aw882xx_monitor_start(struct aw_monitor_desc *monitor_desc)
 
 	monitor_desc->mon_start_flag = true;
 	if (monitor_desc->monitor_mode == AW_MON_KERNEL_MODE) {
-		queue_delayed_work(aw882xx->work_queue,
+		queue_delayed_work(aw_dev->work_queue,
 					&monitor_desc->delay_work, 0);
 	}
 }
@@ -537,6 +535,7 @@ int aw882xx_monitor_stop(struct aw_monitor_desc *monitor_desc)
 
 	if (monitor_desc->monitor_mode == AW_MON_KERNEL_MODE)
 		cancel_delayed_work_sync(&monitor_desc->delay_work);
+
 
 	return 0;
 }
@@ -1407,6 +1406,7 @@ void aw882xx_monitor_init(struct aw_monitor_desc *monitor_desc)
 	monitor_desc->test_vol = 0;
 	monitor_desc->test_temp = 0;
 #endif
+
 
 	aw_monitor_parse_mode(aw_dev);
 	INIT_DELAYED_WORK(&monitor_desc->delay_work, aw_monitor_work_func);
