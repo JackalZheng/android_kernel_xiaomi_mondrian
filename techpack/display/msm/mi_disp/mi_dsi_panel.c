@@ -1082,7 +1082,7 @@ int mi_dsi_panel_set_doze_brightness(struct dsi_panel *panel,
 {
 	int rc = 0;
 	struct mi_dsi_panel_cfg *mi_cfg;
-	unsigned long mode_flags = 0;
+	__maybe_unused unsigned long mode_flags = 0;
 #ifdef CONFIG_MACH_XIAOMI_MARBLE
 	u8 m16t_pb_cmd = 0x51;
 	u8 m16t_pb_data_lbm[2] = {0x00, 0x10};
