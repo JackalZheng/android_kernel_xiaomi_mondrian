@@ -69,6 +69,7 @@ extern void susfs_run_try_umount_for_current_mnt_ns(void);
 #endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 static bool susfs_is_umount_for_zygote_system_process_enabled = false;
+extern bool susfs_hide_sus_mnts_for_all_procs;
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
 extern bool susfs_is_auto_add_sus_bind_mount_enabled;
@@ -502,6 +503,38 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
 				pr_info("susfs: copy_to_user() failed\n");
 			return 0;
 		}
+		if (arg2 == CMD_SUSFS_SET_ANDROID_DATA_ROOT_PATH) {
+			int error = 0;
+			if (!ksu_access_ok((void __user*)arg3, SUSFS_MAX_LEN_PATHNAME)) {
+				pr_err("susfs: CMD_SUSFS_SET_ANDROID_DATA_ROOT_PATH -> arg3 is not accessible\n");
+				return 0;
+			}
+			if (!ksu_access_ok((void __user*)arg5, sizeof(error))) {
+				pr_err("susfs: CMD_SUSFS_SET_ANDROID_DATA_ROOT_PATH -> arg5 is not accessible\n");
+				return 0;
+			}
+			error = susfs_set_i_state_on_external_dir((char __user*)arg3, CMD_SUSFS_SET_ANDROID_DATA_ROOT_PATH);
+			pr_info("susfs: CMD_SUSFS_SET_ANDROID_DATA_ROOT_PATH -> ret: %d\n", error);
+			if (copy_to_user((void __user*)arg5, &error, sizeof(error)))
+				pr_info("susfs: copy_to_user() failed\n");
+			return 0;
+		}
+		if (arg2 == CMD_SUSFS_SET_SDCARD_ROOT_PATH) {
+			int error = 0;
+			if (!ksu_access_ok((void __user*)arg3, SUSFS_MAX_LEN_PATHNAME)) {
+				pr_err("susfs: CMD_SUSFS_SET_SDCARD_ROOT_PATH -> arg3 is not accessible\n");
+				return 0;
+			}
+			if (!ksu_access_ok((void __user*)arg5, sizeof(error))) {
+				pr_err("susfs: CMD_SUSFS_SET_SDCARD_ROOT_PATH -> arg5 is not accessible\n");
+				return 0;
+			}
+			error = susfs_set_i_state_on_external_dir((char __user*)arg3, CMD_SUSFS_SET_SDCARD_ROOT_PATH);
+			pr_info("susfs: CMD_SUSFS_SET_SDCARD_ROOT_PATH -> ret: %d\n", error);
+			if (copy_to_user((void __user*)arg5, &error, sizeof(error)))
+				pr_info("susfs: copy_to_user() failed\n");
+			return 0;
+		}
 #endif //#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 		if (arg2 == CMD_SUSFS_ADD_SUS_MOUNT) {
@@ -516,6 +549,18 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
 			}
 			error = susfs_add_sus_mount((struct st_susfs_sus_mount __user*)arg3);
 			pr_info("susfs: CMD_SUSFS_ADD_SUS_MOUNT -> ret: %d\n", error);
+			if (copy_to_user((void __user*)arg5, &error, sizeof(error)))
+				pr_info("susfs: copy_to_user() failed\n");
+			return 0;
+		}
+		if (arg2 == CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS) {
+			int error = 0;
+			if (arg3 != 0 && arg3 != 1) {
+				pr_err("susfs: CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS -> arg3 can only be 0 or 1\n");
+				return 0;
+			}
+			susfs_hide_sus_mnts_for_all_procs = arg3;
+			pr_info("susfs: CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS -> susfs_hide_sus_mnts_for_all_procs: %lu\n", arg3);
 			if (copy_to_user((void __user*)arg5, &error, sizeof(error)))
 				pr_info("susfs: copy_to_user() failed\n");
 			return 0;
@@ -691,46 +736,43 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
 				return 0;
 			}
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-			enabled_features |= KSU_SUSFS_SUS_PATH_FLAG;
+			enabled_features |= (1 << 0);
 #endif
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-			enabled_features |= KSU_SUSFS_SUS_MOUNT_FLAG;
+			enabled_features |= (1 << 1);
 #endif
 #ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
-			enabled_features |= KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT_FLAG;
+			enabled_features |= (1 << 2);
 #endif
 #ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
-			enabled_features |= KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT_FLAG;
+			enabled_features |= (1 << 3);
 #endif
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-			enabled_features |= KSU_SUSFS_SUS_KSTAT_FLAG;
-#endif
-#ifdef CONFIG_KSU_SUSFS_SUS_OVERLAYFS
-			enabled_features |= KSU_SUSFS_SUS_OVERLAYFS_FLAG;
+			enabled_features |= (1 << 4);
 #endif
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
-			enabled_features |= KSU_SUSFS_TRY_UMOUNT_FLAG;
+			enabled_features |= (1 << 5);
 #endif
 #ifdef CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
-			enabled_features |= KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT_FLAG;
+			enabled_features |= (1 << 6);
 #endif
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-			enabled_features |= KSU_SUSFS_SPOOF_UNAME_FLAG;
+			enabled_features |= (1 << 7);
 #endif
 #ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
-			enabled_features |= KSU_SUSFS_ENABLE_LOG_FLAG;
+			enabled_features |= (1 << 8);
 #endif
 #ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
-			enabled_features |= KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS_FLAG;
+			enabled_features |= (1 << 9);
 #endif
 #ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-			enabled_features |= KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG_FLAG;
+			enabled_features |= (1 << 10);
 #endif
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-			enabled_features |= KSU_SUSFS_OPEN_REDIRECT_FLAG;
+			enabled_features |= (1 << 11);
 #endif
 #ifdef CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT
-			enabled_features |= KSU_SUSFS_HAS_MAGIC_MOUNT_FLAG;
+			enabled_features |= (1 << 13);
 #endif
 			error = copy_to_user((void __user*)arg3, (void*)&enabled_features, sizeof(enabled_features));
 			pr_info("susfs: CMD_SUSFS_SHOW_ENABLED_FEATURES -> ret: %d\n", error);
@@ -960,6 +1002,19 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
 			}
 		}
 	}
+	// - here we check if uid is a isolated service spawned by zygote directly
+	// - Apps that do not use "useAppZyogte" to start a isolated service will be directly
+	//   spawned by zygote which KSU will ignore it by default, the only fix for now is to
+	//   force a umount for those uid
+	// - Therefore make sure your root app doesn't use isolated service for root access
+	// - Kudos to ThePedroo, the author and maintainer of Rezygisk for finding and reporting
+	//   the detection, really big helps here!
+	if (new_uid.val >= 90000 && new_uid.val < 1000000) {
+		task_lock(current);
+		current->susfs_task_state |= TASK_STRUCT_NON_ROOT_USER_APP_PROC;
+		task_unlock(current);
+		goto out_susfs_try_umount_all;
+	}
 #endif
 
 	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
@@ -976,6 +1031,7 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
 		task_lock(current);
 		current->susfs_task_state |= TASK_STRUCT_NON_ROOT_USER_APP_PROC;
 		task_unlock(current);
+		goto out_susfs_try_umount_all;
 	}
 #endif
 
@@ -1008,6 +1064,7 @@ out_ksu_try_umount:
 #endif
 
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+out_susfs_try_umount_all:
 	// susfs come first, and lastly umount by ksu, make sure umount in reversed order
 	susfs_try_umount_all(new_uid.val);
 #else
