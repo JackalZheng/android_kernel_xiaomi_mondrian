@@ -529,9 +529,11 @@ static inline int ipa3_qmi_send_mhi_cleanup_request(
 	return -EPERM;
 }
 
-static int rmnet_ipa3_notify_nat_move_res(bool success)
+/*static int rmnet_ipa3_notify_nat_move_res(bool success)*/
+static __maybe_unused int rmnet_ipa3_notify_nat_move_res(bool success)
+
 {
-	return -EPERM
+	return -EPERM;
 }
 
 static inline int ipa3_wwan_set_modem_perf_profile(
@@ -569,7 +571,8 @@ static inline void ipa3_qmi_cleanup(void)
 
 }
 
-static void ipa3_disable_move_nat_resp(void)
+/*static void ipa3_disable_move_nat_resp(void)*/
+static void __maybe_unused ipa3_disable_move_nat_resp(void)
 {
 
 }

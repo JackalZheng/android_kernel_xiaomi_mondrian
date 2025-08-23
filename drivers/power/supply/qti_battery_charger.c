@@ -3147,7 +3147,9 @@ static ssize_t wls_bin_store(struct class *c,
 	static u16 total_length = 0;
 	static u8 serial_number = 0;
 	static u8 fw_area = 0;
-	int i;
+	/*int i;*/
+        int i __maybe_unused;
+
 
 	if( strncmp("length:", buf, 7 ) == 0 ) {
 		if (kstrtou16( buf+7, 10, &total_length))
@@ -7910,7 +7912,9 @@ static int add_xiaomi_uevent(struct device *dev, struct kobj_uevent_env *env)
 	char *prop_buf = NULL;
 	char uevent_string[MAX_UEVENT_LENGTH+1];
 #if defined(CONFIG_MI_WIRELESS)
-	int val;
+	/*int val;*/
+        int val __maybe_unused;
+
 #endif
 	prop_buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!prop_buf)
