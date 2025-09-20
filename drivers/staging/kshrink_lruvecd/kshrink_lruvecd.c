@@ -33,7 +33,7 @@
 
 #include "../../../mm/internal.h"
 
-LIST_HEAD(lru_inactive);
+static LIST_HEAD(lru_inactive);
 
 #define SHRINK_LRUVECD_HIGH (0x1000)  //16Mbytes
 
@@ -54,13 +54,13 @@ extern unsigned long reclaim_pages(struct list_head *page_list);
 static bool async_shrink_lruvec_setup = false;
 static struct task_struct *shrink_lruvec_tsk = NULL;
 static atomic_t shrink_lruvec_runnable = ATOMIC_INIT(0);
-unsigned long shrink_lruvec_pages = 0;
-unsigned long shrink_lruvec_pages_max = 0;
-unsigned long shrink_lruvec_handle_pages = 0;
-wait_queue_head_t shrink_lruvec_wait;
-spinlock_t l_inactive_lock;
+static unsigned long shrink_lruvec_pages = 0;
+static unsigned long shrink_lruvec_pages_max = 0;
+static unsigned long shrink_lruvec_handle_pages = 0;
+static wait_queue_head_t shrink_lruvec_wait;
+static spinlock_t l_inactive_lock;
 
-static bool process_is_shrink_lruvecd(struct task_struct *tsk)
+static inline bool process_is_shrink_lruvecd(struct task_struct *tsk)
 {
 	return (shrink_lruvec_tsk->pid == tsk->pid);
 }
@@ -75,7 +75,7 @@ static void add_to_lruvecd_inactive_list(struct page *page)
 		shrink_lruvec_pages_max = shrink_lruvec_pages;
 }
 
-void set_shrink_lruvecd_cpus(void)
+static void set_shrink_lruvecd_cpus(void)
 {
 	struct cpumask mask;
 	struct cpumask *cpumask = &mask;
@@ -113,7 +113,6 @@ void set_shrink_lruvecd_cpus(void)
 
 static int shrink_lruvecd(void *p)
 {
-	pg_data_t *pgdat;
 	LIST_HEAD(tmp_lru_inactive);
 	struct page *page, *next;
 	struct list_head;
@@ -130,8 +129,6 @@ static int shrink_lruvecd(void *p)
 	 * us from recursively trying to free more memory as we're
 	 * trying to free the first piece of memory in the first place).
 	 */
-	pgdat = (pg_data_t *)p;
-
 	current->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
 	set_freezable();
 
@@ -306,7 +303,6 @@ static void unregister_shrink_lruvecd_vendor_hooks(void)
 
 static int __init kshrink_lruvec_init(void)
 {
-	pg_data_t *pgdat = NODE_DATA(0);
 	int ret;
 
 	register_shrink_lruvecd_vendor_hooks();
@@ -314,7 +310,7 @@ static int __init kshrink_lruvec_init(void)
 	init_waitqueue_head(&shrink_lruvec_wait);
 	spin_lock_init(&l_inactive_lock);
 
-	shrink_lruvec_tsk = kthread_run(shrink_lruvecd, pgdat, "kshrink_lruvecd");
+	shrink_lruvec_tsk = kthread_run(shrink_lruvecd, NULL, "kshrink_lruvecd");
 	if (IS_ERR_OR_NULL(shrink_lruvec_tsk)) {
 		pr_err("Failed to start shrink_lruvec on node 0\n");
 		ret = PTR_ERR(shrink_lruvec_tsk);
@@ -329,7 +325,7 @@ static int __init kshrink_lruvec_init(void)
 	return 0;
 }
 
-void kshrink_lruvec_exit(void)
+static void __exit kshrink_lruvec_exit(void)
 {
 	remove_proc_entry("kshrink_lruvecd_status", NULL);
 
