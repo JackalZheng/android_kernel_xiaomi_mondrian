@@ -20,6 +20,9 @@
 #include <linux/atomic.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
+#ifndef __GENKSYMS__
+#include <linux/kfifo.h>
+#endif
 #include <linux/android_kabi.h>
 #include <asm/page.h>
 
@@ -118,7 +121,8 @@ static inline bool free_area_empty(struct free_area *area, int migratetype)
 struct pglist_data;
 
 /*
- * Add a wild amount of padding here to ensure datas fall into separate
+ * zone->lock and the zone lru_lock are two of the hottest locks in the kernel.
+ * So add a wild amount of padding here to ensure that they fall into separate
  * cachelines.  There are very few zone structures in the machine, so space
  * consumption is not a concern here.
  */
@@ -293,11 +297,6 @@ struct lruvec {
 	unsigned long			flags;
 #ifdef CONFIG_MEMCG
 	struct pglist_data *pgdat;
-#endif
-#ifndef __GENKSYMS__
-	// HACK: CRC ABI fixups
-	/* per lruvec lru_lock for memcg */
-	spinlock_t			lru_lock;
 #endif
 };
 
@@ -806,13 +805,7 @@ typedef struct pglist_data {
 
 	/* Write-intensive fields used by page reclaim */
 	ZONE_PADDING(_pad1_)
-
-	/* HACK: KABI preservation, DO NOT USE! */
-#ifdef __GENKSYMS__
 	spinlock_t		lru_lock;
-#else
-	spinlock_t		unused;
-#endif
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 	/*
@@ -843,6 +836,13 @@ typedef struct pglist_data {
 	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
 	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
 } pg_data_t;
+
+#define KCOMPRESS_FIFO_SIZE 256
+struct kcompress_t {
+	wait_queue_head_t kcompressd_wait;
+	struct task_struct *kcompressd;
+	struct kfifo kcompress_fifo;
+};
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
 #define node_spanned_pages(nid)	(NODE_DATA(nid)->node_spanned_pages)
@@ -1023,7 +1023,10 @@ extern char numa_zonelist_order[];
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 
 extern struct pglist_data contig_page_data;
-#define NODE_DATA(nid)		(&contig_page_data)
+static inline struct pglist_data *NODE_DATA(int nid)
+{
+	return &contig_page_data;
+}
 #define NODE_MEM_MAP(nid)	mem_map
 
 #else /* CONFIG_NEED_MULTIPLE_NODES */
@@ -1170,6 +1173,7 @@ static inline bool movable_only_nodes(nodemask_t *nodes)
 {
 	struct zonelist *zonelist;
 	struct zoneref *z;
+	int nid;
 
 	if (nodes_empty(*nodes))
 		return false;
@@ -1179,7 +1183,8 @@ static inline bool movable_only_nodes(nodemask_t *nodes)
 	 * zonelist as they are interlinked. We just need to find
 	 * at least one zone that can satisfy kernel allocations.
 	 */
-	zonelist = &NODE_DATA(first_node(*nodes))->node_zonelists[ZONELIST_FALLBACK];
+	nid = first_node(*nodes);
+	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
 	z = first_zones_zonelist(zonelist, ZONE_NORMAL,	nodes);
 	return (!z->zone) ? true : false;
 }

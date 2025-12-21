@@ -453,7 +453,10 @@ static int selinux_is_genfs_special_handling(struct super_block *sb)
 		!strcmp(sb->s_type->name, "rootfs") ||
 		(selinux_policycap_cgroupseclabel() &&
 		 (!strcmp(sb->s_type->name, "cgroup") ||
-		  !strcmp(sb->s_type->name, "cgroup2")));
+		  !strcmp(sb->s_type->name, "cgroup2"))) ||
+		// Android: remove functionfs policycap check due to
+		// ABI breakage with policycap array.
+		!strcmp(sb->s_type->name, "functionfs");
 }
 
 static int selinux_is_sblabel_mnt(struct super_block *sb)
@@ -705,7 +708,10 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	    !strcmp(sb->s_type->name, "tracefs") ||
 	    !strcmp(sb->s_type->name, "binder") ||
 	    !strcmp(sb->s_type->name, "bpf") ||
-	    !strcmp(sb->s_type->name, "pstore"))
+            !strcmp(sb->s_type->name, "pstore") ||
+            // Android: remove functionfs policycap check due to
+            // ABI breakage with policycap array.
+            !strcmp(sb->s_type->name, "functionfs"))
 		sbsec->flags |= SE_SBGENFS;
 
 	if (!strcmp(sb->s_type->name, "sysfs") ||
@@ -1331,21 +1337,16 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 				  u32 def_sid, u32 *sid)
 {
 #define INITCONTEXTLEN 255
-	char *context;
+	char context_onstack[INITCONTEXTLEN + 1] __aligned(sizeof(long));
+	char *context = context_onstack;
 	unsigned int len;
 	int rc;
 
 	len = INITCONTEXTLEN;
-	context = kmalloc(len + 1, GFP_NOFS);
-	if (!context)
-		return -ENOMEM;
-
 	context[len] = '\0';
 	rc = __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, context, len,
 			    XATTR_NOSECURITY);
 	if (rc == -ERANGE) {
-		kfree(context);
-
 		/* Need a larger buffer.  Query for the right size. */
 		rc = __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, NULL, 0,
 				    XATTR_NOSECURITY);
@@ -1362,7 +1363,8 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 				    context, len, XATTR_NOSECURITY);
 	}
 	if (rc < 0) {
-		kfree(context);
+		if (context != context_onstack)
+			kfree(context);
 		if (rc != -ENODATA) {
 			pr_warn("SELinux: %s:  getxattr returned %d for dev=%s ino=%ld\n",
 				__func__, -rc, inode->i_sb->s_id, inode->i_ino);
@@ -1386,7 +1388,8 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 				__func__, context, -rc, dev, ino);
 		}
 	}
-	kfree(context);
+	if (context != context_onstack)
+		kfree(context);
 	return 0;
 }
 
