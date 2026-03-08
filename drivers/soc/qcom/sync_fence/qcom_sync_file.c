@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
  */
 
@@ -201,9 +201,9 @@ static int spec_sync_create_array(struct fence_create_data *f)
 	struct sync_file *sync_file;
 	struct dma_fence_array *fence_array;
 	struct fence_array_node *node;
+	bool signal_any;
 	struct dma_fence **fences;
 	struct dummy_spec_fence *dummy_fence_p = sync_dev.dummy_fence;
-	bool signal_any;
 	int i, ret = 0;
 
 	if (fd < 0) {
