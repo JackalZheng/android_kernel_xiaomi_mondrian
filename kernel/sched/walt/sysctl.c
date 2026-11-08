@@ -949,8 +949,13 @@ void walt_tunables(void)
 
 	sched_ravg_window = DEFAULT_SCHED_RAVG_WINDOW;
 
-	sysctl_input_boost_ms = 40;
+	/* Mondrian UI baseline; vendor-loaded WALT needs the companion module. */
+	sysctl_input_boost_ms = 120;
 
 	for (i = 0; i < 8; i++)
 		sysctl_input_boost_freq[i] = 0;
+	sysctl_input_boost_freq[0] = 1228800;
+	sysctl_input_boost_freq[4] = 1555200;
+	sysctl_input_boost_freq[7] = 1651200;
+	sysctl_sched_boost_on_input = 1;
 }

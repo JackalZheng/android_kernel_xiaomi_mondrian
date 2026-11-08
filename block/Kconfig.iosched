@@ -31,6 +31,15 @@ config MQ_IOSCHED_ADIOS
 	  The Adaptive Deadline I/O Scheduler (ADIOS) is a multi-queue I/O
 	  scheduler with learning-based adaptive latency control.
 
+config MONDRIAN_UFS_ADIOS_DEFAULT
+	bool "Prefer ADIOS for Mondrian UFS queues"
+	depends on MQ_IOSCHED_ADIOS=y && SCSI=y && PM
+	default n
+	help
+	  Prefer built-in ADIOS for UFS-backed SCSI queues at registration.
+	  Other devices retain their normal elevator selection. Android init
+	  may still override this default after boot.
+
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
 	help

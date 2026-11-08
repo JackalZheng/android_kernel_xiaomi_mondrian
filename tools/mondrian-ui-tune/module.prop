@@ -1,0 +1,6 @@
+id=mondrian_ui_tune
+name=Mondrian UI Tune
+version=2026.11.08-ui
+versionCode=20261108
+author=JackalZheng
+description=Post-boot WALT input boost, top-app uclamp and bounded UFS ADIOS retries. No vendor module replacement.

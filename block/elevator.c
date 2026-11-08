@@ -38,6 +38,11 @@
 #include <linux/pm_runtime.h>
 #include <linux/blk-cgroup.h>
 
+#ifdef CONFIG_MONDRIAN_UFS_ADIOS_DEFAULT
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
+#endif
+
 #include <trace/events/block.h>
 
 #include "blk.h"
@@ -622,6 +627,21 @@ static inline bool elv_support_iosched(struct request_queue *q)
  */
 static struct elevator_type *elevator_get_default(struct request_queue *q)
 {
+#ifdef CONFIG_MONDRIAN_UFS_ADIOS_DEFAULT
+	/* sd initializes runtime PM before registering its disk and elevator. */
+	if (q->dev && scsi_is_sdev_device(q->dev)) {
+		struct scsi_device *sdev = to_scsi_device(q->dev);
+
+		if (sdev->host->hostt->proc_name &&
+		    !strcmp(sdev->host->hostt->proc_name, "ufshcd")) {
+			struct elevator_type *e = elevator_get(q, "adios", false);
+
+			if (e)
+				return e;
+		}
+	}
+#endif
+
 	if (q->tag_set && q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
 		return NULL;
 
