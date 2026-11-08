@@ -710,26 +710,14 @@ CONFIG_STACK_HASH_ORDER=12
 CONFIG_PRINTK_TIME=y
 CONFIG_PRINTK_CALLER=y
 CONFIG_DYNAMIC_DEBUG_CORE=y
-CONFIG_DEBUG_INFO_DWARF4=y
 # CONFIG_ENABLE_MUST_CHECK is not set
 CONFIG_HEADERS_INSTALL=y
 # CONFIG_SECTION_MISMATCH_WARN_ONLY is not set
 CONFIG_MAGIC_SYSRQ=y
-CONFIG_UBSAN=y
-CONFIG_UBSAN_TRAP=y
-CONFIG_UBSAN_LOCAL_BOUNDS=y
-# CONFIG_UBSAN_SHIFT is not set
-# CONFIG_UBSAN_OBJECT_SIZE is not set
-# CONFIG_UBSAN_BOOL is not set
-# CONFIG_UBSAN_ENUM is not set
 CONFIG_PAGE_OWNER=y
 CONFIG_PAGE_PINNER=y
-CONFIG_DEBUG_MEMORY_INIT=y
 CONFIG_KASAN=y
 CONFIG_KASAN_HW_TAGS=y
-CONFIG_KFENCE=y
-CONFIG_KFENCE_SAMPLE_INTERVAL=500
-CONFIG_KFENCE_NUM_OBJECTS=63
 CONFIG_PANIC_ON_OOPS=y
 CONFIG_PANIC_TIMEOUT=-1
 CONFIG_DETECT_HUNG_TASK=y
@@ -1161,7 +1149,7 @@ CONFIG_UCLAMP_ASSIST=y
 CONFIG_CPUSETS_ASSIST=y
 CONFIG_HZ_300=y
 # CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY is not set
-CONFIG_CMDLINE="stack_depot_disable=on kasan.stacktrace=off kvm-arm.mode=protected cgroup_disable=pressure cgroup.memory=nokmem dwc3_msm.ep_addr_rxdbg_mask=0 dwc3_msm.ep_addr_txdbg_mask=0 noirqdebug"
+CONFIG_CMDLINE="stack_depot_disable=on kasan=off kasan.stacktrace=off kvm-arm.mode=protected cgroup_disable=pressure cgroup.memory=nokmem dwc3_msm.ep_addr_rxdbg_mask=0 dwc3_msm.ep_addr_txdbg_mask=0 noirqdebug"
 CONFIG_IKHEADERS=y
 CONFIG_SECURITYFS=y
 CONFIG_CRYPTO_LZO=y
@@ -1184,6 +1172,13 @@ CONFIG_LSM="lockdown,yama,loadpin,safesetid,integrity,tomoyo,selinux,bpf"
 CONFIG_SECURITY_SELINUX_BOOTPARAM=y
 
 # ===== Mondrian: minimal debug (daily use) =====
+# Drop runtime UB/sampling checks; keep KASAN_HW_TAGS ABI (kasan=off above).
+# CONFIG_UBSAN is not set
+# CONFIG_KFENCE is not set
+# CONFIG_DEBUG_MEMORY_INIT is not set
+# CONFIG_DEBUG_INFO_DWARF4 is not set
+# Keep PROFILING, PAGE_OWNER/PINNER and TRACE_MMIO_ACCESS for vendor ABI.
+# Keep DEBUG_KINFO and pstore for bootloader/crash diagnosis.
 # CONFIG_DEBUG_INFO is not set
 # CONFIG_NL80211_TESTMODE is not set
 # CONFIG_QCOM_KGSL_CONTEXT_DEBUG is not set
